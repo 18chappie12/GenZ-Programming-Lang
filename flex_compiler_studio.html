@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flex Compiler Studio & Ecosystem</title>
+    <!-- Google Fonts & Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS for high-fidelity Layouts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- D3.js for rendering the dynamic Abstract Syntax Tree (AST) -->
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        flexBg: '#090514',
+                        flexSurface: '#120b24',
+                        flexBorder: '#2d1b4e',
+                        flexAccent: '#bc34fa', // Electric Neon Purple
+                        flexCyan: '#00f3ff',   // Cyber Cyan
+                        flexGreen: '#39ff14',  // Toxic Green
+                        flexRed: '#ff3b30',    // Error Crimson
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar matching Flex dark aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090514;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2d1b4e;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #bc34fa;
+        }
+        
+        /* Neobrutalist border rules & subtle glows */
+        .neobrutal {
+            border: 2px solid #2d1b4e;
+            box-shadow: 4px 4px 0px #2d1b4e;
+            transition: all 0.15s ease-in-out;
+        }
+        .neobrutal:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0px #bc34fa;
+        }
+        .glow-purple {
+            box-shadow: 0 0 15px rgba(188, 52, 250, 0.3);
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+        }
+        .glow-green {
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-flexBg text-gray-200 min-h-screen flex flex-col font-sans overflow-x-hidden select-none">
+
+    <!-- Top Interactive Header bar -->
+    <header class="border-b border-flexBorder bg-flexSurface px-6 py-4 flex items-center justify-between z-10">
+        <div class="flex items-center space-x-3">
+            <!-- Neon Chameleon Custom SVG Icon representing Flash -->
+            <div class="p-2 bg-flexBg rounded-xl border border-flexAccent glow-purple">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12C2 13.9 2.53 15.68 3.44 17.2L2.02 21.44C1.88 21.86 2.14 22.12 2.56 21.98L6.8 20.56C8.32 21.47 10.1 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM11 6C12.1 6 13 6.9 13 8C13 9.1 12.1 10 11 10C9.9 10 9 9.1 9 8C9 6.9 9.9 6 11 6ZM12 18C8.91 18 6.27 16.14 5.16 13.5H18.84C17.73 16.14 15.09 18 12 18Z" fill="#bc34fa"/>
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="text-xl font-extrabold tracking-wider text-white font-mono">FLEX</h1>
+                    <span class="text-xs bg-flexAccent/20 text-flexAccent px-2.5 py-0.5 rounded-full font-mono font-bold tracking-widest border border-flexAccent/40">V2.6.0-ALPHA</span>
+                </div>
+                <p class="text-xs text-gray-400">The high-performance, British-English systems language.</p>
+            </div>
+        </div>
+
+        <!-- Ecosystem Stats Navigation -->
+        <div class="hidden md:flex items-center space-x-6 text-sm">
+            <div class="flex items-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-flexGreen animate-ping"></span>
+                <span class="text-xs text-gray-400 font-mono">RUNTIMES ONLINE</span>
+            </div>
+            <div class="h-6 w-[1px] bg-flexBorder"></div>
+            <div class="flex items-center space-x-2">
+                <span class="text-flexCyan font-mono font-bold">124</span>
+                <span class="text-xs text-gray-400">PACKAGES INSTALLED</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Studio Grid -->
+    <main class="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-5 p-5 overflow-hidden">
+        
+        <!-- Left Side: Interactive Editor & Compiler Control (5 cols) -->
+        <section class="xl:col-span-5 flex flex-col gap-4 min-h-[500px]">
+            
+            <!-- Quick Preset Selector Component -->
+            <div class="bg-flexSurface border border-flexBorder rounded-2xl p-4 flex flex-col gap-3">
+                <label class="text-xs text-gray-400 font-mono tracking-wider font-bold">CHOOSE A FLEX PRESET</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="loadPreset('basic')" class="py-2 px-3 text-xs font-mono font-bold rounded-xl border border-flexBorder bg-flexBg hover:border-flexAccent transition">
+                        1. Basic Loop
+                    </button>
+                    <button onclick="loadPreset('error')" class="py-2 px-3 text-xs font-mono font-bold rounded-xl border border-flexBorder bg-flexBg hover:border-flexRed transition">
+                        2. Scope Error
+                    </button>
+                    <button onclick="loadPreset('ui')" class="py-2 px-3 text-xs font-mono font-bold rounded-xl border border-flexBorder bg-flexBg hover:border-flexCyan transition">
+                        3. Simple UI
+                    </button>
+                </div>
+            </div>
+
+            <!-- Text Code Editor Workspace -->
+            <div class="bg-flexSurface border border-flexBorder rounded-2xl flex-1 flex flex-col overflow-hidden relative min-h-[350px]">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-flexBorder bg-flexBg/60">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-flexRed"></span>
+                        <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                        <span class="w-3 h-3 rounded-full bg-flexGreen"></span>
+                        <span class="text-xs font-mono text-gray-400 ml-2">src/main.flex</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <select id="protocolMode" onchange="updateCompilerState()" class="bg-flexBg border border-flexBorder text-xs rounded-lg px-2.5 py-1 text-flexCyan font-mono focus:outline-none focus:border-flexAccent">
+                            <option value="casual">protocol: casual</option>
+                            <option value="strict">protocol: strict</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Code Editor Textarea panel -->
+                <div class="flex-1 relative font-mono text-sm leading-relaxed p-4 bg-flexBg flex overflow-hidden">
+                    <!-- Line numbers -->
+                    <div class="w-10 text-gray-600 text-right pr-4 select-none flex flex-col space-y-[4px]" id="lineNumbers">
+                        <div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>10</div>
+                    </div>
+                    <!-- Editable Code Field -->
+                    <textarea id="flexEditor" oninput="handleCodeInput()" class="flex-1 bg-transparent text-gray-100 outline-none resize-none overflow-y-auto whitespace-pre-wrap select-text font-mono" style="line-height: 1.5rem;" spellcheck="false">programme BritishApp {
+    initialise age = 18
+    constant passingLimit = 16
+
+    if (age >= passingLimit) {
+        spill "Vibe Check Passed: Valid License"
+    } else {
+        spill "Vibe Check Failed: Too Young"
+    }
+}</textarea>
+                </div>
+
+                <!-- Compiler Control Action Bar -->
+                <div class="p-4 border-t border-flexBorder bg-flexBg/80 flex items-center justify-between">
+                    <div class="flex items-center space-x-3 text-xs font-mono text-gray-400">
+                        <span>Speed:</span>
+                        <input id="compileSpeed" type="range" min="0.5" max="3" step="0.5" value="1" class="w-20 accent-flexAccent bg-flexBorder cursor-pointer" onchange="updateSpeedLabel()">
+                        <span id="speedVal">1.0s</span>
+                    </div>
+                    <button onclick="triggerVibeCheck()" class="neobrutal px-6 py-2.5 bg-flexAccent text-white font-extrabold tracking-wider rounded-xl flex items-center space-x-2 hover:bg-flexAccent/90 transition text-sm">
+                        <span class="material-icons text-base">play_circle_filled</span>
+                        <span>RUN VIBE CHECK</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Center & Right Sides: Visual Pipelines and Ecosystem Tabs (7 cols) -->
+        <section class="xl:col-span-7 flex flex-col gap-4">
+            
+            <!-- Tab Controls Navigation -->
+            <div class="flex border border-flexBorder bg-flexSurface p-1.5 rounded-2xl gap-1">
+                <button onclick="switchTab('pipeline')" id="tabBtn-pipeline" class="flex-1 py-3 text-xs font-mono font-bold tracking-widest uppercase rounded-xl transition bg-flexAccent text-white">
+                    🛠️ Compiler Pipeline
+                </button>
+                <button onclick="switchTab('packman')" id="tabBtn-packman" class="flex-1 py-3 text-xs font-mono font-bold tracking-widest uppercase rounded-xl transition text-gray-400 hover:text-white">
+                    📦 Package Manager
+                </button>
+                <button onclick="switchTab('mascot')" id="tabBtn-mascot" class="flex-1 py-3 text-xs font-mono font-bold tracking-widest uppercase rounded-xl transition text-gray-400 hover:text-white">
+                    🦎 Mascot & Eco
+                </button>
+            </div>
+
+            <!-- Tab 1: Compiler Pipeline Panel -->
+            <div id="tabContent-pipeline" class="flex-1 flex flex-col gap-4 overflow-y-auto max-h-[80vh]">
+                
+                <!-- Terminal & Live Compilation Progress Component -->
+                <div class="bg-flexSurface border border-flexBorder rounded-2xl overflow-hidden flex flex-col h-[280px]">
+                    <div class="px-4 py-3 border-b border-flexBorder bg-flexBg/70 flex justify-between items-center">
+                        <span class="text-xs font-mono text-gray-300 font-bold flex items-center gap-2">
+                            <span class="material-icons text-xs text-flexAccent">terminal</span>
+                            FLEX NATIVE COMPILER TERMINAL
+                        </span>
+                        <span class="text-xs font-mono bg-flexAccent/20 text-flexAccent px-2 py-0.5 rounded-md border border-flexAccent/30" id="cliStatus">
+                            IDLE
+                        </span>
+                    </div>
+                    <div class="flex-1 p-4 font-mono text-xs text-gray-400 overflow-y-auto bg-flexBg flex flex-col gap-2" id="cliTerminal">
+                        <div class="text-gray-500">// Flex System Native Compiler CLI Ready.</div>
+                        <div class="text-gray-300"><span class="text-flexAccent">flex run</span> app.flex</div>
+                        <div class="text-flexGreen">✔ Loaded source file successfully. Press "Run Vibe Check" to execute native compilation pipelines.</div>
+                    </div>
+                    <!-- Embedded Progress bar -->
+                    <div class="h-1.5 bg-flexBorder w-full relative">
+                        <div id="cliProgress" class="h-full bg-flexAccent w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <!-- Split AST Layout Tree and Token Pipeline Visualizer -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[350px]">
+                    
+                    <!-- Tokenizer Token Feed View (Lexer Output) -->
+                    <div class="bg-flexSurface border border-flexBorder rounded-2xl flex flex-col overflow-hidden">
+                        <div class="px-4 py-2.5 border-b border-flexBorder bg-flexBg/70 flex justify-between items-center">
+                            <span class="text-xs font-mono text-gray-300 font-bold">1. LEXER FEED</span>
+                            <span class="text-[10px] text-flexCyan font-mono" id="lexerTokenCount">0 TOKENS</span>
+                        </div>
+                        <div class="flex-1 p-3 overflow-y-auto flex flex-col gap-2 bg-flexBg font-mono text-xs" id="lexerOutput">
+                            <div class="text-gray-600 italic">Lexer waiting to tokenize variables and program structures...</div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Tree Drawer (Parser AST) -->
+                    <div class="bg-flexSurface border border-flexBorder rounded-2xl flex flex-col overflow-hidden">
+                        <div class="px-4 py-2.5 border-b border-flexBorder bg-flexBg/70 flex justify-between items-center">
+                            <span class="text-xs font-mono text-gray-300 font-bold">2. PARSER AST TREE</span>
+                            <span class="text-[10px] text-flexAccent font-mono">LIVE GRAPH</span>
+                        </div>
+                        <div class="flex-1 bg-flexBg overflow-hidden relative flex items-center justify-center p-2" id="astContainer">
+                            <svg id="astSvg" class="w-full h-full text-white pointer-events-none" style="min-height: 250px;"></svg>
+                            <div class="absolute inset-0 bg-flexBg flex items-center justify-center pointer-events-none hidden" id="astEmptyMsg">
+                                <span class="text-xs text-gray-600 italic font-mono">AST Tree renders dynamically on success builds...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Tab 2: Package Manager Module -->
+            <div id="tabContent-packman" class="flex-1 hidden flex-col gap-4">
+                
+                <!-- Package Manager CLI Box -->
+                <div class="bg-flexSurface border border-flexBorder rounded-2xl p-5 flex flex-col gap-4">
+                    <h3 class="text-sm font-mono text-flexCyan font-extrabold flex items-center gap-2">
+                        <span class="material-icons text-base text-flexCyan">widgets</span>
+                        FX REPOSITORY ENGINE
+                    </h3>
+                    <p class="text-xs text-gray-400">Installs dependencies and structural framework cards instantly using native British caching schemas.</p>
+                    
+                    <div class="flex gap-3">
+                        <input id="packageSearch" type="text" placeholder="e.g. animation, navigation, themes..." class="flex-1 bg-flexBg border border-flexBorder rounded-xl px-4 py-2.5 text-sm font-mono text-gray-100 focus:outline-none focus:border-flexAccent placeholder-gray-600">
+                        <button onclick="simPackageInstall()" class="px-5 py-2.5 bg-flexCyan text-flexBg font-extrabold text-sm rounded-xl hover:bg-flexCyan/90 transition">
+                            FX ADD
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Popular Packages List -->
+                <div class="bg-flexSurface border border-flexBorder rounded-2xl p-4 flex flex-col gap-3">
+                    <h4 class="text-xs text-gray-400 font-mono tracking-wider font-bold">POPULAR ECOSYSTEM MODULES</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="packageList">
+                        <!-- Packages filled dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Mascot Details and Ecosystem Guide -->
+            <div id="tabContent-mascot" class="flex-1 hidden flex-col gap-4">
+                
+                <!-- Mascot Chameleon Component Card -->
+                <div class="bg-flexSurface border border-flexBorder rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6">
+                    <div class="w-28 h-28 shrink-0 flex items-center justify-center bg-flexBg border-2 border-flexAccent rounded-full glow-purple relative" id="mascotWrapper">
+                        <!-- Chameleon Dynamic Face Vector -->
+                        <svg class="w-16 h-16 transition-all duration-300" id="mascotSvg" viewBox="0 0 100 100">
+                            <!-- Eyes -->
+                            <circle cx="35" cy="40" r="12" fill="#bc34fa" class="transition-all duration-300" id="mascotEyeL"></circle>
+                            <circle cx="35" cy="40" r="4" fill="#000"></circle>
+                            <circle cx="65" cy="40" r="12" fill="#bc34fa" class="transition-all duration-300" id="mascotEyeR"></circle>
+                            <circle cx="65" cy="40" r="4" fill="#000"></circle>
+                            <!-- Mouth -->
+                            <path d="M 30 70 Q 50 85 70 70" stroke="#00f3ff" stroke-width="4" fill="none" id="mascotMouth" class="transition-all duration-300"></path>
+                            <!-- Antennas/Horns -->
+                            <path d="M 50 15 L 50 3" stroke="#bc34fa" stroke-width="4" stroke-linecap="round"></path>
+                            <circle cx="50" cy="3" r="4" fill="#39ff14"></circle>
+                        </svg>
+                    </div>
+
+                    <div class="flex-1 flex flex-col gap-2 text-center md:text-left">
+                        <h3 class="text-lg font-extrabold text-white flex items-center gap-2 justify-center md:justify-start">
+                            <span>Flash the Chameleon</span>
+                            <span class="text-xs text-flexGreen bg-flexGreen/10 px-2 py-0.5 rounded border border-flexGreen/30">Official Mascot</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Flash lives on your systems status and IDE canvas. Watch Flash react to compiler health metrics - adapting its colors and behavior as you compile robust systems patterns!</p>
+                        <div class="flex flex-wrap gap-2 justify-center md:justify-start mt-2">
+                            <span class="text-[10px] font-mono bg-flexGreen/10 text-flexGreen px-2.5 py-1 rounded-full border border-flexGreen/30">💚 Success = Vibrant Green</span>
+                            <span class="text-[10px] font-mono bg-flexRed/10 text-flexRed px-2.5 py-1 rounded-full border border-flexRed/30">❤️ Crash = Angry Crimson</span>
+                            <span class="text-[10px] font-mono bg-flexCyan/10 text-flexCyan px-2.5 py-1 rounded-full border border-flexCyan/30">💙 Parsing = Cyan Glow</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ecosystem Target Specs -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="bg-flexSurface border border-flexBorder rounded-2xl p-4 flex flex-col gap-2">
+                        <div class="flex items-center space-x-2 text-flexAccent">
+                            <span class="material-icons">laptop</span>
+                            <span class="font-mono text-xs font-bold">NATIVE BUILDERS</span>
+                        </div>
+                        <p class="text-[11px] text-gray-400">Flex supports native compiling to target OS platforms (X64, Apple Silicon) directly.</p>
+                    </div>
+                    <div class="bg-flexSurface border border-flexBorder rounded-2xl p-4 flex flex-col gap-2">
+                        <div class="flex items-center space-x-2 text-flexCyan">
+                            <span class="material-icons">security</span>
+                            <span class="font-mono text-xs font-bold">OPT-IN SECURITY</span>
+                        </div>
+                        <p class="text-[11px] text-gray-400">Casual protocols prevent early compiler roadblocks, keeping network checks simple.</p>
+                    </div>
+                    <div class="bg-flexSurface border border-flexBorder rounded-2xl p-4 flex flex-col gap-2">
+                        <div class="flex items-center space-x-2 text-flexGreen">
+                            <span class="material-icons">bolt</span>
+                            <span class="font-mono text-xs font-bold">EXTREME VELOCITY</span>
+                        </div>
+                        <p class="text-[11px] text-gray-400">Built-in tree optimization phases make compiled .flex apps light, fast, and optimized.</p>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        // Preset Code Dictionary inside the sandbox
+        const PRESETS = {
+            basic: `programme MatchChecker {
+    initialise score = 85
+    constant targetLimit = 75
+
+    if (score > targetLimit) {
+        spill "Vibe Check: Match Won!"
+    } else {
+        spill "Vibe Check: Keep Training"
+    }
+}`,
+            error: `programme FaultyScope {
+    initialise score = 95
+    
+    // Unknown variable below triggers friendly error checking
+    if (score > baselineTarget) {
+        spill "This will trigger compiler analyzer warning"
+    }
+}`,
+            ui: `programme RenderApp {
+    initialise textVal = "Welcome to Flex Studio"
+    
+    layout HomeLayout(textVal) {
+        panel background(colour: grey) {
+            text textVal font(bold) size(24)
+        }
+    }
+}`
+        };
+
+        // Standard preloaded packages list
+        const ECO_PACKAGES = [
+            { id: 'animation', name: 'animation.flib', desc: 'Sleek component motion hooks.', installed: true },
+            { id: 'crypto', name: 'crypto.flib', desc: 'Secure opt-in British encryption hashes.', installed: false },
+            { id: 'webui', name: 'webui.flib', desc: 'Pre-formatted beautiful dashboard cards.', installed: true },
+            { id: 'networking', name: 'networking.flib', desc: 'Zero-config local microservice pipelines.', installed: false }
+        ];
+
+        let activeTab = 'pipeline';
+        let currentCompilationSpeed = 1.0;
+        let isCompiling = false;
+
+        // On document load, initialize layouts and systems
+        window.onload = function() {
+            renderPackages();
+            updateSpeedLabel();
+            updateLineNumbers();
+            // Start by building initial syntax check
+            triggerVibeCheck();
+        };
+
+        // Handle tabs switcher
+        function switchTab(tabId) {
+            document.getElementById(`tabContent-${activeTab}`).classList.add('hidden');
+            document.getElementById(`tabContent-${activeTab}`).classList.remove('flex');
+            document.getElementById(`tabBtn-${activeTab}`).className = "flex-1 py-3 text-xs font-mono font-bold tracking-widest uppercase rounded-xl transition text-gray-400 hover:text-white";
+
+            activeTab = tabId;
+
+            document.getElementById(`tabContent-${tabId}`).classList.remove('hidden');
+            document.getElementById(`tabContent-${tabId}`).classList.add('flex');
+            document.getElementById(`tabBtn-${tabId}`).className = "flex-1 py-3 text-xs font-mono font-bold tracking-widest uppercase rounded-xl transition bg-flexAccent text-white";
+        }
+
+        // Preset loading
+        function loadPreset(key) {
+            const editor = document.getElementById('flexEditor');
+            editor.value = PRESETS[key];
+            updateLineNumbers();
+            triggerVibeCheck();
+        }
+
+        function updateSpeedLabel() {
+            const speed = document.getElementById('compileSpeed').value;
+            currentCompilationSpeed = parseFloat(speed);
+            document.getElementById('speedVal').textContent = `${currentCompilationSpeed.toFixed(1)}s`;
+        }
+
+        // Adjust line number counts on editing inputs
+        function handleCodeInput() {
+            updateLineNumbers();
+        }
+
+        function updateLineNumbers() {
+            const editor = document.getElementById('flexEditor');
+            const lines = editor.value.split('\n').length;
+            const container = document.getElementById('lineNumbers');
+            container.innerHTML = '';
+            for (let i = 1; i <= Math.max(10, lines); i++) {
+                const numDiv = document.createElement('div');
+                numDiv.textContent = i;
+                container.appendChild(numDiv);
+            }
+        }
+
+        // Deep Tokenizer (Lexer Stage)
+        function tokenizeFlex(sourceCode) {
+            const tokens = [];
+            const keywords = ['programme', 'initialise', 'constant', 'display', 'spill', 'if', 'else', 'layout', 'panel', 'text', 'button', 'protocol', 'vibe', 'lock'];
+            
+            // Clean strings, line breaks, structures
+            const cleanSource = sourceCode.replace(/\/\/.*$/gm, ''); // Remove inline comments
+            
+            // Regular expressions for lexer matching
+            const tokenRegex = /\s*("[^"]*"|[a-zA-Z_]\w*|[0-9]+|>=|<=|==|!=|=|\+|-|\*|\/|->|\{|\}|\(|\)|;)\s*/g;
+            let match;
+            
+            while ((match = tokenRegex.exec(cleanSource)) !== null) {
+                let val = match[1];
+                let type = 'IDENTIFIER';
+                
+                if (val.startsWith('"') && val.endsWith('"')) {
+                    type = 'STRING';
+                } else if (!isNaN(val)) {
+                    type = 'NUMBER';
+                } else if (keywords.includes(val)) {
+                    type = 'KEYWORD';
+                } else if (['{', '}', '(', ')'].includes(val)) {
+                    type = 'BRACE';
+                } else if (['=', '>=', '<=', '==', '!=', '+', '-', '*', '/', '->'].includes(val)) {
+                    type = 'OPERATOR';
+                }
+                
+                tokens.push({ type, value: val });
+            }
+            return tokens;
+        }
+
+        // AST Parser & Visual Structure Generation
+        function parseFlexToAST(tokens) {
+            // Simplified Pratt or Descent Parsing to produce structural tree format
+            let current = 0;
+            
+            function walk() {
+                let token = tokens[current];
+                if (!token) return null;
+
+                if (token.type === 'NUMBER') {
+                    current++;
+                    return { type: 'NumericLiteral', value: token.value };
+                }
+
+                if (token.type === 'STRING') {
+                    current++;
+                    return { type: 'StringLiteral', value: token.value.replace(/"/g, '') };
+                }
+
+                if (token.type === 'IDENTIFIER') {
+                    current++;
+                    return { type: 'Identifier', name: token.value };
+                }
+
+                if (token.type === 'KEYWORD') {
+                    if (token.value === 'initialise' || token.value === 'constant' || token.value === 'vibe' || token.value === 'lock') {
+                        current++;
+                        const nameToken = tokens[current];
+                        current++; // consume identifier
+                        let expr = null;
+                        if (tokens[current] && tokens[current].value === '=') {
+                            current++; // consume assign
+                            expr = walk();
+                        }
+                        return {
+                            type: 'VariableDeclaration',
+                            kind: token.value,
+                            id: nameToken ? nameToken.value : 'unresolved',
+                            init: expr
+                        };
+                    }
+
+                    if (token.value === 'programme') {
+                        current++;
+                        const nameToken = tokens[current];
+                        current++; // consume identifier
+                        const body = [];
+                        if (tokens[current] && tokens[current].value === '{') {
+                            current++; // consume brace
+                            while (tokens[current] && tokens[current].value !== '}') {
+                                body.push(walk());
+                            }
+                            if (tokens[current]) current++; // consume closing brace
+                        }
+                        return {
+                            type: 'ProgramNode',
+                            name: nameToken ? nameToken.value : 'Main',
+                            body: body.filter(x => x !== null)
+                        };
+                    }
+
+                    if (token.value === 'spill' || token.value === 'display') {
+                        current++;
+                        const expr = walk();
+                        return {
+                            type: 'OutputStatement',
+                            callee: token.value,
+                            argument: expr
+                        };
+                    }
+
+                    if (token.value === 'if') {
+                        current++; // consume 'if'
+                        let condition = 'Expression';
+                        if (tokens[current] && tokens[current].value === '(') {
+                            current++;
+                            const condTokens = [];
+                            while (tokens[current] && tokens[current].value !== ')') {
+                                condTokens.push(tokens[current].value);
+                                current++;
+                            }
+                            if (tokens[current]) current++; // consume ')'
+                            condition = condTokens.join(' ');
+                        }
+                        const consequent = [];
+                        if (tokens[current] && tokens[current].value === '{') {
+                            current++;
+                            while (tokens[current] && tokens[current].value !== '}') {
+                                consequent.push(walk());
+                            }
+                            if (tokens[current]) current++;
+                        }
+                        return {
+                            type: 'IfStatement',
+                            condition: condition,
+                            consequent: consequent.filter(x => x !== null)
+                        };
+                    }
+                }
+
+                // If unexpected token, increment safely to avoid hanging loop
+                current++;
+                return null;
+            }
+
+            const astBody = [];
+            while (current < tokens.length) {
+                const node = walk();
+                if (node) astBody.push(node);
+            }
+
+            return {
+                type: 'RootAST',
+                children: astBody
+            };
+        }
+
+        // Native Compiler CLI & Vibe Check Simulation Orchestrator
+        function triggerVibeCheck() {
+            if (isCompiling) return;
+            isCompiling = true;
+
+            const code = document.getElementById('flexEditor').value;
+            const terminal = document.getElementById('cliTerminal');
+            const progress = document.getElementById('cliProgress');
+            const statusIndicator = document.getElementById('cliStatus');
+            
+            // Adjust Flash (mascot) to "Compiling / Reading State" (Cyan)
+            adjustMascot('compiling');
+
+            // Reset Output panel views
+            terminal.innerHTML = `<div class="text-gray-500">// Flex System Native Compiler Engine Active...</div>`;
+            statusIndicator.textContent = "COMPILING";
+            statusIndicator.className = "text-xs font-mono bg-flexAccent/20 text-flexAccent px-2 py-0.5 rounded-md border border-flexAccent/30";
+            
+            progress.style.width = '0%';
+
+            // Step 1: Lexer Tokenizer
+            writeTerminal(`[STAGE 1] Launching Native Lexer...`, 'gray');
+            const tokens = tokenizeFlex(code);
+            writeTerminal(`✔ Scanned ${tokens.length} lexical tokens safely.`, 'cyan');
+
+            // Show Lexer Feed
+            renderLexerOutput(tokens);
+
+            // Step 2: Semantic Checks (e.g. searching for spelling variations)
+            setTimeout(() => {
+                progress.style.width = '35%';
+                writeTerminal(`[STAGE 2] Running Grammar Analyser & British Spelling checks...`, 'gray');
+                
+                // Friendly warnings if they mix up British structures
+                if (code.includes('initialize') || code.includes('color')) {
+                    const errorMsg = code.includes('initialize') 
+                        ? '🚨 Vibe Check Failed: Found "initialize". Flex is strictly British English. Use "initialise".'
+                        : '🚨 Vibe Check Failed: Found "color". Did you forget the "u"? Use "colour".';
+                    
+                    writeTerminal(errorMsg, 'red');
+                    statusIndicator.textContent = "CRASH";
+                    statusIndicator.className = "text-xs font-mono bg-flexRed/20 text-flexRed px-2 py-0.5 rounded-md border border-flexRed/30";
+                    adjustMascot('crash');
+                    isCompiling = false;
+                    return;
+                }
+
+                // Step 3: Parser (Building the AST)
+                setTimeout(() => {
+                    progress.style.width = '70%';
+                    writeTerminal(`[STAGE 3] Parser active. Building Abstract Syntax Tree...`, 'gray');
+                    const ast = parseFlexToAST(tokens);
+                    
+                    // Semantic Analyzer scope check
+                    const scopeCheckResult = checkScopeVariables(ast, code);
+                    if (!scopeCheckResult.valid) {
+                        writeTerminal(`🚨 Semantic Scope Error: Unknown variable "${scopeCheckResult.variable}" on Line 4!`, 'red');
+                        writeTerminal(`💡 Did you mean: "${scopeCheckResult.didYouMean}"?`, 'cyan');
+                        statusIndicator.textContent = "CRASH";
+                        statusIndicator.className = "text-xs font-mono bg-flexRed/20 text-flexRed px-2 py-0.5 rounded-md border border-flexRed/30";
+                        adjustMascot('crash');
+                        isCompiling = false;
+                        return;
+                    }
+
+                    renderAST(ast);
+                    writeTerminal(`✔ Abstract Syntax Tree generated successfully. Nodes locked.`, 'cyan');
+
+                    // Step 4: Final Native Execution output simulation
+                    setTimeout(() => {
+                        progress.style.width = '100%';
+                        writeTerminal(`[STAGE 4] Executing native runtime compilation targeting local microcode...`, 'gray');
+                        writeTerminal(`✨ Build Successful. Zero crumbs left!`, 'green');
+                        writeTerminal(`🕒 Compiled in: 0.03 seconds`, 'gray');
+                        
+                        // Output run feedback
+                        writeTerminal(`\n🚀 [Output Spill]:`, 'white');
+                        runMockExecutionOutput(code);
+
+                        statusIndicator.textContent = "READY";
+                        statusIndicator.className = "text-xs font-mono bg-flexGreen/20 text-flexGreen px-2 py-0.5 rounded-md border border-flexGreen/30";
+                        adjustMascot('success');
+                        isCompiling = false;
+                    }, currentCompilationSpeed * 300);
+
+                }, currentCompilationSpeed * 350);
+
+            }, currentCompilationSpeed * 350);
+        }
+
+        // Scope verification logic mock for semantic analyzer demo
+        function checkScopeVariables(ast, code) {
+            // If the code contains "FaultyScope" code block
+            if (code.includes('baselineTarget') && !code.includes('baselineTarget =')) {
+                return { valid: false, variable: 'baselineTarget', didYouMean: 'score' };
+            }
+            return { valid: true };
+        }
+
+        function writeTerminal(text, colorClass) {
+            const terminal = document.getElementById('cliTerminal');
+            const log = document.createElement('div');
+            
+            if (colorClass === 'red') log.className = "text-flexRed font-bold";
+            else if (colorClass === 'green') log.className = "text-flexGreen font-bold";
+            else if (colorClass === 'cyan') log.className = "text-flexCyan";
+            else if (colorClass === 'gray') log.className = "text-gray-500 italic";
+            else if (colorClass === 'white') log.className = "text-white font-bold border-t border-flexBorder/40 pt-1 mt-1";
+            else log.className = "text-gray-300";
+
+            log.textContent = text;
+            terminal.appendChild(log);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function renderLexerOutput(tokens) {
+            const container = document.getElementById('lexerOutput');
+            container.innerHTML = '';
+            document.getElementById('lexerTokenCount').textContent = `${tokens.length} TOKENS`;
+
+            tokens.forEach(tok => {
+                const badge = document.createElement('div');
+                badge.className = "flex justify-between items-center bg-flexSurface border border-flexBorder/80 px-2.5 py-1.5 rounded-xl text-xs";
+                
+                let valColor = "text-white";
+                if (tok.type === 'KEYWORD') valColor = "text-flexAccent font-bold";
+                else if (tok.type === 'STRING') valColor = "text-flexCyan";
+                else if (tok.type === 'NUMBER') valColor = "text-flexGreen";
+
+                badge.innerHTML = `
+                    <span class="text-[10px] text-gray-500 font-bold">${tok.type}</span>
+                    <span class="font-mono ${valColor}">${tok.value}</span>
+                `;
+                container.appendChild(badge);
+            });
+        }
+
+        // Execution simulator to print the results of standard presets
+        function runMockExecutionOutput(code) {
+            if (code.includes('UserProfile') || code.includes('age = 18')) {
+                writeTerminal(`"Vibe Check Passed: Valid License"`, 'white');
+            } else if (code.includes('MatchChecker') || code.includes('score = 85')) {
+                writeTerminal(`"Vibe Check: Match Won!"`, 'white');
+            } else if (code.includes('RenderApp') || code.includes('HomeLayout')) {
+                writeTerminal(`"Rendering components via layout model successfully."`, 'white');
+            } else {
+                writeTerminal(`"Evaluation complete: Build executed clean."`, 'white');
+            }
+        }
+
+        // Updates Flash the Chameleon's state (colors + eyes) based on state
+        function adjustMascot(status) {
+            const mascotSvg = document.getElementById('mascotSvg');
+            const mascotEyeL = document.getElementById('mascotEyeL');
+            const mascotEyeR = document.getElementById('mascotEyeR');
+            const mascotMouth = document.getElementById('mascotMouth');
+            const mascotWrapper = document.getElementById('mascotWrapper');
+
+            if (status === 'compiling') {
+                // Glow cyan while compiling
+                mascotWrapper.className = "w-28 h-28 shrink-0 flex items-center justify-center bg-flexBg border-2 border-flexCyan rounded-full glow-cyan relative";
+                mascotEyeL.setAttribute('fill', '#00f3ff');
+                mascotEyeR.setAttribute('fill', '#00f3ff');
+                mascotMouth.setAttribute('d', 'M 35 75 Q 50 75 65 75'); // Flat neutral mouth
+            } else if (status === 'success') {
+                // Vibrant success green
+                mascotWrapper.className = "w-28 h-28 shrink-0 flex items-center justify-center bg-flexBg border-2 border-flexGreen rounded-full glow-green relative";
+                mascotEyeL.setAttribute('fill', '#39ff14');
+                mascotEyeR.setAttribute('fill', '#39ff14');
+                mascotMouth.setAttribute('d', 'M 30 65 Q 50 85 70 65'); // Smile mouth
+            } else if (status === 'crash') {
+                // Crimson angry glow
+                mascotWrapper.className = "w-28 h-28 shrink-0 flex items-center justify-center bg-flexBg border-2 border-flexRed rounded-full shadow-[0_0_15px_rgba(255,59,48,0.5)] relative";
+                mascotEyeL.setAttribute('fill', '#ff3b30');
+                mascotEyeR.setAttribute('fill', '#ff3b30');
+                mascotMouth.setAttribute('d', 'M 35 80 Q 50 65 65 80'); // Frown mouth
+            }
+        }
+
+        // Custom SVG D3 Renderer for the AST
+        function renderAST(astData) {
+            const svgElement = document.getElementById('astSvg');
+            svgElement.innerHTML = ''; // Clear SVG canvas
+
+            // If empty AST children, hide visually
+            if (!astData || !astData.children || astData.children.length === 0) {
+                document.getElementById('astEmptyMsg').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('astEmptyMsg').classList.add('hidden');
+
+            const width = svgElement.clientWidth || 300;
+            const height = svgElement.clientHeight || 250;
+
+            // Structure data for D3 tree hierarchy map
+            const rootNode = {
+                name: "RootAST",
+                children: astData.children.map(child => {
+                    if (child.type === 'ProgramNode') {
+                        return {
+                            name: `programme: ${child.name}`,
+                            children: child.body.map(bodyNode => ({
+                                name: bodyNode.type === 'VariableDeclaration' 
+                                    ? `Init: ${bodyNode.id}` 
+                                    : bodyNode.type === 'OutputStatement' 
+                                        ? `Spill: ${bodyNode.callee}` 
+                                        : bodyNode.type === 'IfStatement'
+                                            ? `Condition: ${bodyNode.condition}`
+                                            : bodyNode.type
+                            }))
+                        };
+                    }
+                    if (child.type === 'VariableDeclaration') {
+                        return { name: `Init: ${child.id}` };
+                    }
+                    return { name: child.type };
+                })
+            };
+
+            const svg = d3.select("#astSvg");
+            
+            // Build tree layout structures
+            const treeLayout = d3.tree().size([width - 40, height - 80]);
+            const root = d3.hierarchy(rootNode);
+            treeLayout(root);
+
+            // Shift root down slightly
+            const g = svg.append("g").attr("transform", "translate(20, 40)");
+
+            // Add path lines/connectors
+            g.selectAll(".link")
+                .data(root.links())
+                .enter()
+                .append("line")
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y)
+                .attr("stroke", "#2d1b4e")
+                .attr("stroke-width", 2);
+
+            // Add Node Elements
+            const nodes = g.selectAll(".node")
+                .data(root.descendants())
+                .enter()
+                .append("g")
+                .attr("transform", d => `translate(${d.x}, ${d.y})`);
+
+            // Decorative shapes for nodes
+            nodes.append("circle")
+                .attr("r", 6)
+                .attr("fill", d => d.depth === 0 ? "#bc34fa" : d.depth === 1 ? "#00f3ff" : "#39ff14")
+                .attr("stroke", "#090514")
+                .attr("stroke-width", 1.5);
+
+            // Node Labels text mapping
+            nodes.append("text")
+                .attr("dy", d => d.children ? -12 : 18)
+                .attr("text-anchor", "middle")
+                .text(d => d.data.name)
+                .attr("fill", "#a0aec0")
+                .style("font-size", "9px")
+                .style("font-family", "monospace");
+        }
+
+        // Package Manager Rendering
+        function renderPackages() {
+            const list = document.getElementById('packageList');
+            list.innerHTML = '';
+
+            ECO_PACKAGES.forEach(pkg => {
+                const card = document.createElement('div');
+                card.className = "bg-flexBg/80 border border-flexBorder p-3 rounded-xl flex items-center justify-between";
+                
+                card.innerHTML = `
+                    <div class="flex flex-col gap-1">
+                        <span class="font-mono text-xs font-bold text-white flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full ${pkg.installed ? 'bg-flexGreen' : 'bg-gray-600'}"></span>
+                            ${pkg.name}
+                        </span>
+                        <p class="text-[10px] text-gray-500">${pkg.desc}</p>
+                    </div>
+                    <div>
+                        <button onclick="togglePackage('${pkg.id}')" class="px-3 py-1.5 font-mono text-[10px] font-extrabold tracking-widest uppercase rounded-lg border transition ${pkg.installed ? 'border-flexRed/30 bg-flexRed/10 text-flexRed' : 'border-flexCyan/30 bg-flexCyan/10 text-flexCyan'}">
+                            ${pkg.installed ? 'REMOVE' : 'INSTALL'}
+                        </button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function togglePackage(id) {
+            const pkg = ECO_PACKAGES.find(p => p.id === id);
+            if (pkg) {
+                pkg.installed = !pkg.installed;
+                renderPackages();
+            }
+        }
+
+        function simPackageInstall() {
+            const query = document.getElementById('packageSearch').value.trim();
+            if (!query) return;
+
+            // Mock install success
+            const newPkgName = `${query.toLowerCase()}.flib`;
+            
+            // Check if already exists
+            if (ECO_PACKAGES.some(p => p.name === newPkgName)) {
+                alert("Package already exists in cache repository!");
+                return;
+            }
+
+            ECO_PACKAGES.push({
+                id: query.toLowerCase(),
+                name: newPkgName,
+                desc: 'Custom installed student dependency package.',
+                installed: true
+            });
+
+            document.getElementById('packageSearch').value = '';
+            renderPackages();
+        }
+    </script>
+</body>
+</html>
